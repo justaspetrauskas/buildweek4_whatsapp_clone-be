@@ -1,8 +1,9 @@
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
-
 import listEndpoints from "express-list-endpoints";
+
+import ChatRouter from "./services/chats/index.js";
 
 const server = express();
 
@@ -14,7 +15,9 @@ server.use(cors());
 server.use(express.json());
 
 // SERVICES
+server.use("/chats", ChatRouter);
 
+// SERVER
 server.listen(PORT, () => {
   // connect to mongoose Server
 
