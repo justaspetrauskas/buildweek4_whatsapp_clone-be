@@ -33,6 +33,7 @@
     "jsonwebtoken": "^8.5.1",
     "mongodb": "^4.1.4",
     "mongoose": "^6.0.12",
-    "query-to-mongo": "^0.10.1"
+    "query-to-mongo": "^0.10.1",
+    "socket.io": "^4.3.2"
   }
 }
