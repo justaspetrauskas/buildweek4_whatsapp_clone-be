@@ -1,9 +1,10 @@
 import express from "express";
 import ChatModel from "../../schemas/chatSchema.js";
+import { isChatMember } from "../../Authorization/member.js";
 
 const chatRouter = express.Router();
 
-chatRouter.get("/", async (req, res, next) => {
+chatRouter.get("/", isChatMember, async (req, res, next) => {
   try {
     //   Returns all chats in which you are a member
     const chats = await ChatModel.find({ user: req.user }).populate({
@@ -31,7 +32,7 @@ chatRouter.post("/", async (req, res, next) => {
   }
 });
 
-chatRouter.get("/:chatID", async (req, res, next) => {
+chatRouter.get("/:chatID", isChatMember, async (req, res, next) => {
   try {
     // must be a chat member
     const chat = await ChatModel.findOne({ history: req.params.chatID });

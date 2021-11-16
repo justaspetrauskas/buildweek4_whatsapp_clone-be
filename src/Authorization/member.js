@@ -7,11 +7,7 @@ export const isChatMember = async (req, res, next) => {
     if (chat) {
       const isMember = chat.members.equals(req.user._id);
       console.log(isMember);
-      if (isMember) {
-        next();
-      } else {
-        res.status(404).send("not the member of the conversation");
-      }
+      return isMember;
     } else {
       res.status(404, "Chat not found");
     }

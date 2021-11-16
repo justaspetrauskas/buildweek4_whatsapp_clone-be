@@ -4,9 +4,13 @@ import mongoose from "mongoose";
 import listEndpoints from "express-list-endpoints";
 import { createServer } from "http";
 import { Server } from "socket.io";
-
 import UserRouter from "./services/users/index.js";
 import ChatRouter from "./services/chats/index.js";
+
+// for socketIO
+import { verifyJWT } from "./Authorization/tools.js";
+import UserModel from "./schemas/userSchema.js";
+import ChatModel from "./schemas/chatSchema.js";
 
 const server = express();
 const port = process.env.PORT || 3001;
@@ -27,32 +31,62 @@ server.use("/users", UserRouter);
 
 const httpServer = createServer(server);
 
-const io = new Server(httpServer, { allowEIO3: true });
+//=======================================Socket IO=====================================================
 
+// compatibility option
+export const io = new Server(httpServer, { allowEIO3: true });
+
+const isValidJwt = async (header) => {
+  const decodedToken = await verifyJWT(header);
+  const user = await UserModel.findById(decodedToken._id);
+  return user;
+};
+
+io.use(async (socket, next) => {
+  const token = socket.handshake.headers["authorization"];
+  const user = await isValidJwt(token);
+  if (user) {
+    return next();
+  } else {
+    return next(new Error("authentication error"));
+  }
+});
 io.on("connection", (socket) => {
-  console.log(`User Connected: ${socket.id}`);
+  console.log(socket.id);
+  socket.on("sendmessage", async ({ message, room }) => {
+    // console.log(room)
 
-  socket.on("send_message", async ({ message, members }) => {
+    // we need to save the message to the Database
+
+    // try {
+
+    //     throw new Error("Something went wrong")
+
     await ChatModel.findOneAndUpdate(
-      { members },
-      { $push: { chatHistory: message } }
+      { room },
+      {
+        $push: { history: message },
+      }
     );
 
-    socket.to(members).emit("receive_message", message);
-  });
+    // socket.broadcast.emit("message", message)
+    socket.to(room).emit("message", message);
 
-  socket.on("disconnect", () => {
-    console.log("User Disconnected", socket.id);
+    // } catch (error) {
+    //     socket.emit("message-error", { error: error.message })
+    // }
   });
 });
 
 // SERVER
-server.listen(PORT, () => {
-  // connect to mongoose Server
 
-  mongoose.connect(process.env.MONGODB, {});
+if (!process.env.MONGODB) {
+  throw new Error("No MongoDB url defined");
+}
 
-  console.log(`Server is listening on port ${PORT}`);
+mongoose.connect(process.env.MONGODB).then(() => {
+  console.log("connected to mongo");
+  httpServer.listen(PORT);
   console.table(listEndpoints(server));
 });
 
