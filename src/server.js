@@ -53,7 +53,21 @@ io.use(async (socket, next) => {
 });
 io.on("connection", (socket) => {
   console.log(socket.id);
-  socket.on("sendmessage", async ({ message, room }) => {
+  const id = socket.handshake.query.id;
+  socket.join(id);
+  socket.on("sendmessage", async ({ message, members }) => {
+    members.forEach((member) => {
+      const newRecipients = members.filter((r) => r !== recipient);
+      await ChatModel.findOneAndUpdate(
+        { newRecipients },
+        {
+          $push: { history: message },
+        }
+      );
+      socket.broadcast
+        .to(recipient)
+        .emit("receive-message", { members: newRecipients, sender: id, txt });
+    });
     // console.log(room)
 
     // we need to save the message to the Database
@@ -61,13 +75,6 @@ io.on("connection", (socket) => {
     // try {
 
     //     throw new Error("Something went wrong")
-
-    await ChatModel.findOneAndUpdate(
-      { room },
-      {
-        $push: { history: message },
-      }
-    );
 
     // socket.broadcast.emit("message", message)
     socket.to(room).emit("message", message);
