@@ -4,10 +4,15 @@ import mongoose from "mongoose";
 import listEndpoints from "express-list-endpoints";
 import { createServer } from "http";
 import { Server } from "socket.io";
-
 import UserRouter from "./services/users/index.js";
 import ChatRouter from "./services/chats/index.js";
 
+// for socketIO
+import { verifyJWT } from "./Authorization/tools.js";
+import UserModel from "./schemas/userSchema.js";
+import ChatModel from "./schemas/chatSchema.js";
+import MessageModel from "./schemas/messageSchema.js";
+import onSocketConnected from "./socketio/index.js";
 const server = express();
 const port = process.env.PORT || 3001;
 
@@ -22,37 +27,50 @@ server.use(cors());
 server.use(express.json());
 
 // SERVICES
-server.use("/chats", ChatRouter);
-server.use("/users", UserRouter);
 
 const httpServer = createServer(server);
 
-const io = new Server(httpServer, { allowEIO3: true });
+//=======================================Socket IO=====================================================
 
-io.on("connection", (socket) => {
-  console.log(`User Connected: ${socket.id}`);
+// compatibility option
+export const io = new Server(httpServer, { allowEIO3: true });
 
-  socket.on("send_message", async ({ message, members }) => {
-    await ChatModel.findOneAndUpdate(
-      { members },
-      { $push: { chatHistory: message } }
-    );
+const isValidJwt = async (header) => {
+  const decodedToken = await verifyJWT(header);
+  const user = await UserModel.findById(decodedToken._id);
+  return user;
+};
 
-    socket.to(members).emit("receive_message", message);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User Disconnected", socket.id);
-  });
+io.use(async (socket, next) => {
+  const token = socket.handshake.headers["authorization"];
+  const user = await isValidJwt(token);
+  socket.user = user;
+  if (user) {
+    return next();
+  } else {
+    return next(new Error("authentication error"));
+  }
 });
 
+io.on("connection", (socket) => onSocketConnected(io, socket));
+
+server.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+server.use("/chats", ChatRouter);
+server.use("/users", UserRouter);
+
 // SERVER
-server.listen(PORT, () => {
-  // connect to mongoose Server
 
-  mongoose.connect(process.env.MONGODB, {});
+if (!process.env.MONGODB) {
+  throw new Error("No MongoDB url defined");
+}
 
-  console.log(`Server is listening on port ${PORT}`);
+mongoose.connect(process.env.MONGODB).then(() => {
+  console.log("connected to mongo");
+  httpServer.listen(PORT);
   console.table(listEndpoints(server));
 });
 
