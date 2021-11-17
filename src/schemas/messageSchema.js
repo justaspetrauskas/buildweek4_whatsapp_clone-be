@@ -5,16 +5,15 @@ const { Schema, model } = mongoose;
 const messageSchema = new Schema(
   {
     sender: {
-      type: String,
-      required: true,
+      type: Schema.Types.ObjectId,
+      ref: "User",
     },
-    content: {
-      text: { type: String, required: false },
-      media: { type: String, required: false },
-    },
+    text: { type: String, required: false },
+    // media: { type: String, required: false },
+    chatId: { type: Schema.Types.ObjectId, ref: "Chat" },
   },
   {
-    timestamp: true,
+    timestamps: true,
   }
 );
 

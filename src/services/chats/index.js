@@ -1,15 +1,16 @@
 import express from "express";
 import ChatModel from "../../schemas/chatSchema.js";
 import { isChatMember } from "../../Authorization/member.js";
+import { JWTAuthMiddleware } from "../../Authorization/token.js";
 
 const chatRouter = express.Router();
 
-chatRouter.get("/", isChatMember, async (req, res, next) => {
+chatRouter.get("/", JWTAuthMiddleware, async (req, res, next) => {
   try {
     //   Returns all chats in which you are a member
-    const chats = await ChatModel.find({ user: req.user }).populate({
-      path: "history",
-      select: "content",
+    console.log(req.user._id);
+    const chats = await ChatModel.find({
+      members: { $in: req.user._id },
     });
 
     res.send(chats);
@@ -18,15 +19,24 @@ chatRouter.get("/", isChatMember, async (req, res, next) => {
   }
 });
 
-chatRouter.post("/", async (req, res, next) => {
+chatRouter.post("/", JWTAuthMiddleware, async (req, res, next) => {
   try {
     // check if the request sender had and active chat with this user (look for the history)
-    const chatExists = await ChatModel.findOne({ members: req.body.userId });
+    const { members } = req.body;
 
-    // if not: create a new chat among the request sender and the members listed in the request body
+    // new chat
     const newChat = new ChatModel({
-      members: [req.body.receiverId],
-    });
+      members: [...members, req.user._id],
+    }).save();
+
+    // add members to the newly created chat room
+    for (socket of req.io.sockets.sockets) {
+      const [socketId, socketObject] = Object.values(socket);
+      if (members.includes(socketObject.user._id)) {
+        socketObject.join(newChat._id.toString());
+      }
+    }
+    res.send(newChat);
   } catch (error) {
     next(error);
   }

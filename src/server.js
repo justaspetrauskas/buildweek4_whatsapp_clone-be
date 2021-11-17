@@ -11,7 +11,8 @@ import ChatRouter from "./services/chats/index.js";
 import { verifyJWT } from "./Authorization/tools.js";
 import UserModel from "./schemas/userSchema.js";
 import ChatModel from "./schemas/chatSchema.js";
-
+import MessageModel from "./schemas/messageSchema.js";
+import onSocketConnected from "./socketio/index.js";
 const server = express();
 const port = process.env.PORT || 3001;
 
@@ -26,8 +27,6 @@ server.use(cors());
 server.use(express.json());
 
 // SERVICES
-server.use("/chats", ChatRouter);
-server.use("/users", UserRouter);
 
 const httpServer = createServer(server);
 
@@ -45,45 +44,23 @@ const isValidJwt = async (header) => {
 io.use(async (socket, next) => {
   const token = socket.handshake.headers["authorization"];
   const user = await isValidJwt(token);
+  socket.user = user;
   if (user) {
     return next();
   } else {
     return next(new Error("authentication error"));
   }
 });
-io.on("connection", (socket) => {
-  console.log(socket.id);
-  const id = socket.handshake.query.id;
-  socket.join(id);
-  socket.on("sendmessage", async ({ message, members }) => {
-    members.forEach((member) => {
-      const newRecipients = members.filter((r) => r !== recipient);
-      await ChatModel.findOneAndUpdate(
-        { newRecipients },
-        {
-          $push: { history: message },
-        }
-      );
-      socket.broadcast
-        .to(recipient)
-        .emit("receive-message", { members: newRecipients, sender: id, txt });
-    });
-    // console.log(room)
 
-    // we need to save the message to the Database
+io.on("connection", (socket) => onSocketConnected(io, socket));
 
-    // try {
-
-    //     throw new Error("Something went wrong")
-
-    // socket.broadcast.emit("message", message)
-    socket.to(room).emit("message", message);
-
-    // } catch (error) {
-    //     socket.emit("message-error", { error: error.message })
-    // }
-  });
+server.use((req, res, next) => {
+  req.io = io;
+  next();
 });
+
+server.use("/chats", ChatRouter);
+server.use("/users", UserRouter);
 
 // SERVER
 
