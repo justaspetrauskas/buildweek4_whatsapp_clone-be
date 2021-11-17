@@ -19,6 +19,7 @@ const userSchema = new Schema({
       "https://www.pngfind.com/pngs/m/676-6764065_default-profile-picture-transparent-hd-png-download.png",
   },
   refreshToken: { type: String },
+  isOnline: { type: Boolean, default: false },
 });
 
 userSchema.pre("save", async function (next) {

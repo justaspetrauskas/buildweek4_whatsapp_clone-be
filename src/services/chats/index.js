@@ -1,7 +1,8 @@
 import express from "express";
 import ChatModel from "../../schemas/chatSchema.js";
-import { isChatMember } from "../../Authorization/member.js";
 import { JWTAuthMiddleware } from "../../Authorization/token.js";
+import mongoose from "mongoose";
+import { imageUpload } from "../../Tools/multerTools.js";
 
 const chatRouter = express.Router();
 
@@ -42,20 +43,58 @@ chatRouter.post("/", JWTAuthMiddleware, async (req, res, next) => {
   }
 });
 
-chatRouter.get("/:chatID", isChatMember, async (req, res, next) => {
+chatRouter.get("/:chatID", JWTAuthMiddleware, async (req, res, next) => {
   try {
     // must be a chat member
-    const chat = await ChatModel.findOne({ history: req.params.chatID });
+    const { chatID } = req.params;
+    const chat = await ChatModel.findById(chatID);
+    // if found check if the user is a member
+    if (chat) {
+      const isMember = chat.members.indexOf(
+        mongoose.Types.ObjectId(req.user._id)
+      );
+
+      if (isMember > -1) {
+        res.send(chat);
+      } else {
+        res.send("user is not in this chat");
+      }
+    } else {
+      res.send("chat is not found");
+    }
   } catch (error) {
     next(error);
   }
 });
 
-chatRouter.post("/:chatID/image", async (req, res, next) => {
-  try {
-  } catch (error) {
-    next(error);
+chatRouter.post(
+  "/:chatID/image",
+  JWTAuthMiddleware,
+  imageUpload.single("chatImage"),
+  async (req, res, next) => {
+    try {
+      const imagePath = req.file.path;
+      const { chatID } = req.params;
+      const chat = await ChatModel.findById(chatID);
+      if (chat) {
+        console.log(chat);
+        const isMember = chat.members.indexOf(
+          mongoose.Types.ObjectId(req.user._id)
+        );
+        if (isMember > -1) {
+          chat.chatImage = imagePath;
+          await chat.save();
+          res.send(chat);
+        } else {
+          res.send("user is not in this chat");
+        }
+      } else {
+        res.send("chat is not found");
+      }
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 export default chatRouter;

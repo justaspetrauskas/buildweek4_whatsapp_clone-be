@@ -9,7 +9,7 @@ const messageSchema = new Schema(
       ref: "User",
     },
     text: { type: String, required: false },
-    // media: { type: String, required: false },
+    media: { type: String, required: false },
     chatId: { type: Schema.Types.ObjectId, ref: "Chat" },
   },
   {
