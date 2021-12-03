@@ -12,7 +12,9 @@ chatRouter.get("/", JWTAuthMiddleware, async (req, res, next) => {
     console.log(req.user._id);
     const chats = await ChatModel.find({
       members: { $in: req.user._id },
-    });
+    })
+      .populate("members")
+      .populate("history");
 
     res.send(chats);
   } catch (error) {
@@ -47,7 +49,7 @@ chatRouter.get("/:chatID", JWTAuthMiddleware, async (req, res, next) => {
   try {
     // must be a chat member
     const { chatID } = req.params;
-    const chat = await ChatModel.findById(chatID);
+    const chat = await ChatModel.findById(chatID).populate("history");
     // if found check if the user is a member
     if (chat) {
       const isMember = chat.members.indexOf(

@@ -8,8 +8,9 @@ const onlineUser = {};
 
 const onSocketConnected = async (io, socket) => {
   // add to online users
-  onlineUser[socket.id] = socket.user._id;
-  console.log("user online", user);
+  // onlineUser[socket.id] = socket.user._id;
+  // console.log("user online", socket);
+
   // load chats that user is a participant
   const chatsThatUserIsParticipant = await Chat.find({
     members: new mongoose.Types.ObjectId(socket.user._id),
@@ -17,6 +18,10 @@ const onSocketConnected = async (io, socket) => {
   chatsThatUserIsParticipant.forEach((chat) => {
     socket.join(chat._id.toString());
   });
+  console.log(chatsThatUserIsParticipant);
+  // receive chats that user is a participant
+  socket.emit("lastChat", chatsThatUserIsParticipant[0]);
+
   //   to receive a message
   socket.on("message", (payload) => onMessage(io, socket, payload));
   //   socket.on("image", (payload) => onImage(io, socket, payload));

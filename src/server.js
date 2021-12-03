@@ -42,13 +42,17 @@ const isValidJwt = async (header) => {
 };
 
 io.use(async (socket, next) => {
-  const token = socket.handshake.headers["authorization"];
-  const user = await isValidJwt(token);
-  socket.user = user;
-  if (user) {
-    return next();
+  if (socket.handshake.query && socket.handshake.query.authorization) {
+    const token = socket.handshake.query["authorization"];
+    const user = await isValidJwt(token);
+    socket.user = user;
+    if (user) {
+      return next();
+    } else {
+      return next(new Error("authentication error"));
+    }
   } else {
-    return next(new Error("authentication error"));
+    next(new Error("Authentication error"));
   }
 });
 

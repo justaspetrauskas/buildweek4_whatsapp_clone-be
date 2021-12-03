@@ -94,6 +94,25 @@ userRouter.put("/me", JWTAuthMiddleware, async (req, res, next) => {
   }
 });
 
+// UPLOAD PICTURE
+userRouter.post(
+  "/account/:userId/avatar",
+  imageUpload.single("avatar"),
+  async (req, res, next) => {
+    try {
+      const imagePath = req.file.path;
+      const userAvatar = await UserModel.findByIdAndUpdate(
+        req.params.userId,
+        { avatar: imagePath },
+        { new: true }
+      );
+      res.status(201).send(userAvatar);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // CHANGE PICTURE
 userRouter.post(
   "/me/avatar",
@@ -140,7 +159,7 @@ userRouter.get("/", JWTAuthMiddleware, async (req, res, next) => {
         res.send("User does not exist");
       }
     } else {
-      const allUsers = await UserModel.find();
+      const allUsers = await UserModel.find({ _id: { $ne: req.user._id } });
       res.send(allUsers);
     }
   } catch (error) {
